@@ -77,6 +77,7 @@ public class MainActivity extends AppCompatActivity {
         btnListen.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+
                 recognitionProgressView.play();
                 startRecognition();
 
@@ -88,7 +89,9 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         if (speechRecognizer != null) {
+
             speechRecognizer.destroy();
+
         }
         super.onDestroy();
     }
