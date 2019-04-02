@@ -2,8 +2,10 @@ package com.example.speech;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.SearchManager;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
 import android.support.annotation.NonNull;
@@ -21,7 +23,10 @@ import com.andrognito.flashbar.Flashbar;
 import com.github.zagum.speechrecognitionview.RecognitionProgressView;
 import com.github.zagum.speechrecognitionview.adapters.RecognitionListenerAdapter;
 
+import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -60,6 +65,7 @@ public class MainActivity extends AppCompatActivity {
         recognitionProgressView.setRecognitionListener(new RecognitionListenerAdapter() {
             @Override
             public void onResults(Bundle results) {
+
                 showResults(results);
                 recognitionProgressView.stop();
                 recognitionProgressView.play();
@@ -97,17 +103,90 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void startRecognition() {
+
         Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+
         intent.putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, getPackageName());
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "vi");
+
         speechRecognizer.startListening(intent);
+
     }
 
     private void showResults(Bundle results) {
         ArrayList<String> matches = results
                 .getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
-        Toast.makeText(this, matches.get(0), Toast.LENGTH_LONG).show();
+
+        String text = matches.get(0);
+        text = text.toLowerCase();
+
+
+        if (text.contains("gọi")){
+
+            String[] t = matches.get(0).split(" ");
+            String number = "";
+            for (String i : t){
+
+                Pattern pattern = Pattern.compile("\\d*");
+                Matcher matcher = pattern.matcher(i);
+                Log.d("Text: ", i);
+                if (matcher.matches()) {
+                    number += i;
+                }
+            }
+
+            phone_call(number);
+
+            Toast.makeText(this, number, Toast.LENGTH_LONG).show();
+
+        }//else if (text.contains("mở")){
+//            Toast.makeText(this, text, Toast.LENGTH_LONG).show();
+//
+//
+//        }
+        else if (text.contains("tìm")){
+
+            if(text.contains("đường")){
+
+                String string_start = "đến";
+
+                int start = text.indexOf(string_start) + string_start.length();
+                int end = text.length();
+
+                String location = text.substring(start, end);
+                navigation(location);
+
+                Toast.makeText(this, "Tim duong", Toast.LENGTH_SHORT).show();
+
+            }else if (text.contains("gần")){
+
+                String string_start = "tìm";
+                String string_end = "gần";
+
+                int start = text.indexOf(string_start) + string_start.length();
+                int end = text.indexOf(string_end);
+
+                String location = text.substring(start, end);
+                search_location(location);
+
+                Toast.makeText(this, "Tim gan nhat", Toast.LENGTH_LONG).show();
+
+            }else{
+
+                String string_start = "tìm";
+
+                int start = text.indexOf(string_start) + string_start.length();
+                int end = text.length();
+
+                String key = text.substring(start, end);
+
+                search_google(key);
+            }
+        }else{
+            search_google(text);
+        }
+
     }
 
     private void requestPermission() {
@@ -150,5 +229,39 @@ public class MainActivity extends AppCompatActivity {
                 .backgroundColorRes(R.color.color1)
                 .build()
                 .show();
+    }
+
+
+    private void phone_call(String number){
+
+        Intent callIntent = new Intent(Intent.ACTION_CALL);
+        callIntent.setData(Uri.parse("tel:"+number));
+        startActivity(callIntent);
+
+    }
+
+
+    private void search_google(String key){
+
+        Intent intent = new Intent(Intent.ACTION_WEB_SEARCH);
+
+        intent.putExtra(SearchManager.QUERY, key);
+
+        startActivity(intent);
+    }
+
+    private void search_location(String location){
+        Uri gmmIntentUri = Uri.parse("geo:0,0?q=" + location);
+        Intent mapIntent = new Intent(Intent.ACTION_VIEW, gmmIntentUri);
+        mapIntent.setPackage("com.google.android.apps.maps");
+        startActivity(mapIntent);
+    }
+    private void navigation(String location){
+        location = location.replace(" ", "+");
+
+        Uri gmmIntentUri = Uri.parse("google.navigation:q="+location);
+        Intent mapIntent = new Intent(Intent.ACTION_VIEW, gmmIntentUri);
+        mapIntent.setPackage("com.google.android.apps.maps");
+        startActivity(mapIntent);
     }
 }
