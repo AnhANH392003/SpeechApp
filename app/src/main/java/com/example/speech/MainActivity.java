@@ -389,8 +389,8 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
             else if (text.contains("face")){
                 lauch_application("com.facebook.katana");
             }
-            else if (text.contains("instagram")){
-                lauch_application("com.instagram.android");
+            else if (text.contains("messenger")){
+                lauch_application("com.facebook.orca");
             }
             else if (text.contains("instagram")){
                 lauch_application("com.instagram.android");
