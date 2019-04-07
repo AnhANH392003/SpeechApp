@@ -58,25 +58,11 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        btnListen = findViewById(R.id.btnListen);
-        recognitionProgressView = (RecognitionProgressView) findViewById(R.id.recognition_view);
 
         requestPermission();
 
         init();
 
-        contacts = new ArrayList<>();
-        GetContactsIntoArrayList();
-
-        btnListen.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-
-                recognitionProgressView.play();
-                startRecognition();
-
-            }
-        });
 
     }
 
@@ -95,6 +81,24 @@ public class MainActivity extends AppCompatActivity {
 
         int[] heights = { 20, 24, 18, 23, 16 };
 
+        btnListen = findViewById(R.id.btnListen);
+        recognitionProgressView = (RecognitionProgressView) findViewById(R.id.recognition_view);
+
+        contacts = new ArrayList<>();
+        GetContactsIntoArrayList();
+
+        btnListen.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                recognitionProgressView.play();
+                startRecognition();
+
+                btnListen.setText("Recording");
+                btnListen.setEnabled(false);
+            }
+        });
+
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
 
 
@@ -106,6 +110,9 @@ public class MainActivity extends AppCompatActivity {
                 processing_text(results);
                 recognitionProgressView.stop();
                 recognitionProgressView.play();
+
+                btnListen.setText("Start");
+                btnListen.setEnabled(true);
             }
         });
         recognitionProgressView.setColors(colors);
