@@ -26,6 +26,7 @@ dependencies {
 
     implementation 'com.github.zagum:SpeechRecognitionView:1.2.2'
     implementation 'com.andrognito.flashbar:flashbar:1.0.2'
+    implementation 'com.github.KwabenBerko:OpenWeatherMap-Android-Library:2.0.1'
 
 
     testImplementation 'junit:junit:4.12'

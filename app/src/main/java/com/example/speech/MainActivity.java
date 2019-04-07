@@ -4,11 +4,16 @@ import android.Manifest;
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.Dialog;
+import android.app.ProgressDialog;
 import android.app.SearchManager;
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.ContactsContract;
@@ -29,30 +34,50 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.andrognito.flashbar.Flashbar;
 import com.github.zagum.speechrecognitionview.RecognitionProgressView;
 import com.github.zagum.speechrecognitionview.adapters.RecognitionListenerAdapter;
+import com.kwabenaberko.openweathermaplib.constants.Lang;
+import com.kwabenaberko.openweathermaplib.constants.Units;
+import com.kwabenaberko.openweathermaplib.implementation.OpenWeatherMapHelper;
+import com.kwabenaberko.openweathermaplib.implementation.callbacks.CurrentWeatherCallback;
+import com.kwabenaberko.openweathermaplib.models.currentweather.CurrentWeather;
 
 import java.net.URLEncoder;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.TimeZone;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements LocationListener {
 
-    private String[] permissions = {Manifest.permission.RECORD_AUDIO,
-                                    Manifest.permission.CALL_PHONE,
-                                    Manifest.permission.READ_CONTACTS};
+    private String[] permissions = {Manifest.permission.INTERNET,
+            Manifest.permission.RECORD_AUDIO,
+            Manifest.permission.CALL_PHONE,
+            Manifest.permission.READ_CONTACTS,
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+            Manifest.permission.ACCESS_FINE_LOCATION};
 
     private SpeechRecognizer speechRecognizer;
+
+    private LocationManager locationManager;
+    private double latitude, longitude;
+    private OpenWeatherMapHelper weather;
+
 
     private Button btnListen;
     private RecognitionProgressView recognitionProgressView;
 
     private List<Contact> contacts;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -63,6 +88,21 @@ public class MainActivity extends AppCompatActivity {
 
         init();
 
+
+        locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
+                ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        Location location = locationManager.getLastKnownLocation(locationManager.NETWORK_PROVIDER);
+
+        weather = new OpenWeatherMapHelper(getString(R.string.OPEN_WEATHER_MAP_API_KEY));
+        weather.setUnits(Units.METRIC);
+        weather.setLang(Lang.VIETNAMESE);
+
+
+        onLocationChanged(location);
 
     }
 
@@ -363,6 +403,9 @@ public class MainActivity extends AppCompatActivity {
 
 
         }
+        else if (text.contains("thời tiết")){
+            weather();
+        }
         else{
             search_google(text);
         }
@@ -452,5 +495,107 @@ public class MainActivity extends AppCompatActivity {
         }else{
             startActivity(new Intent(Intent.ACTION_VIEW).setData(Uri.parse("https://play.google.com/store/apps/details?id=" + idApp)));
         }
+    }
+
+    private void weather(){
+
+        final ProgressDialog progressDialog = new ProgressDialog(this);
+        progressDialog.setMessage("please waiting....");
+        progressDialog.show();
+
+        weather.getCurrentWeatherByGeoCoordinates(latitude, longitude, new CurrentWeatherCallback() {
+            @Override
+            public void onSuccess(CurrentWeather currentWeather) {
+
+                progressDialog.dismiss();
+
+                Date timeSunrise = new Date(currentWeather.getSys().getSunrise()*1000);
+                Date timeSunset = new Date(currentWeather.getSys().getSunset()*1000);
+
+                DateFormat dateFormat = new SimpleDateFormat("hh:mm a");
+
+                String sunrise = dateFormat.format(timeSunrise);
+                String sunset = dateFormat.format(timeSunset);
+
+
+                Log.v("Weather", "Coordinates: " + currentWeather.getCoord().getLat() + ", "+currentWeather.getCoord().getLon() +"\n"
+                        +"Weather Description: " + currentWeather.getWeather().get(0).getDescription() + "\n"
+                        +"Temperature: " + currentWeather.getMain().getTempMax()+"\n"
+                        +"Wind Speed: " + currentWeather.getWind().getSpeed() + "\n"
+                        +"City, Country: " + currentWeather.getName() + ", " + currentWeather.getSys().getCountry() + "\n"
+                        +"Time sunrise: " + sunrise +"\n"
+                        +"Time sunset: " + sunset +"\n"
+                );
+
+                String location = currentWeather.getName() + ", " + currentWeather.getSys().getCountry();
+                String description = currentWeather.getWeather().get(0).getDescription();
+                String wind = String.valueOf(currentWeather.getWind().getSpeed());
+                String tempMax = String.valueOf(currentWeather.getMain().getTempMax());
+                String tempMin = String.valueOf(currentWeather.getMain().getTempMin());
+                String humidity = String.valueOf(currentWeather.getMain().getHumidity());
+
+                show_weather(location, description, tempMax, tempMin, wind, humidity,  sunrise, sunset);
+            }
+
+            @Override
+            public void onFailure(Throwable throwable) {
+                progressDialog.dismiss();
+                show_alert(MainActivity.this, "Lỗi", "Chức năng đang bị lỗi!");
+                Log.v("Weather", throwable.getMessage());
+            }
+        });
+
+    }
+    private void show_weather(String location, String description,  String tempMax, String tempMin, String wind,String humidity, String sunrise, String sunset){
+        Dialog dialog = new Dialog(this);
+        dialog.setContentView(R.layout.weather);
+
+        dialog.setContentView(R.layout.weather);
+
+        TextView tvLocation, tvDescription, tvTempMax, tvTempMin, tvWind, tvHumidity, tvSunrise, tvSunset;
+
+        tvLocation = dialog.findViewById(R.id.tvLocation);
+        tvDescription = dialog.findViewById(R.id.tvDescription);
+        tvTempMax = dialog.findViewById(R.id.tvTempMax);
+        tvTempMin = dialog.findViewById(R.id.tvTempMin);
+        tvWind = dialog.findViewById(R.id.tvWind);
+        tvHumidity = dialog.findViewById(R.id.tvHumidity);
+        tvSunrise = dialog.findViewById(R.id.tvSunrise);
+        tvSunset = dialog.findViewById(R.id.tvSunset);
+
+
+        tvLocation.setText(location);
+        tvDescription.setText(description);
+        tvTempMax.setText(tempMax);
+        tvTempMin.setText(tempMin);
+        tvWind.setText(wind);
+        tvHumidity.setText(humidity);
+        tvSunrise.setText(sunrise);
+        tvSunset.setText(sunset);
+
+        dialog.show();
+    }
+
+    @Override
+    public void onLocationChanged(Location location) {
+        latitude = location.getLatitude();
+        longitude = location.getLongitude();
+
+        Log.d("onLocationChanged", String.valueOf(latitude) + " " + String.valueOf(longitude));
+    }
+
+    @Override
+    public void onStatusChanged(String provider, int status, Bundle extras) {
+
+    }
+
+    @Override
+    public void onProviderEnabled(String provider) {
+
+    }
+
+    @Override
+    public void onProviderDisabled(String provider) {
+
     }
 }
