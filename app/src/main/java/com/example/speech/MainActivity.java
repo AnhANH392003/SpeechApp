@@ -16,6 +16,7 @@ import android.location.LocationListener;
 import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Vibrator;
 import android.provider.ContactsContract;
 import android.provider.MediaStore;
 import android.speech.RecognizerIntent;
@@ -46,6 +47,8 @@ import com.kwabenaberko.openweathermaplib.implementation.OpenWeatherMapHelper;
 import com.kwabenaberko.openweathermaplib.implementation.callbacks.CurrentWeatherCallback;
 import com.kwabenaberko.openweathermaplib.models.currentweather.CurrentWeather;
 
+import java.io.File;
+import java.io.IOException;
 import java.net.URLEncoder;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -57,16 +60,31 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class MainActivity extends AppCompatActivity implements LocationListener {
+import edu.cmu.pocketsphinx.Assets;
+import edu.cmu.pocketsphinx.Hypothesis;
+import edu.cmu.pocketsphinx.RecognitionListener;
+import edu.cmu.pocketsphinx.SpeechRecognizerSetup;
+
+public class MainActivity extends AppCompatActivity implements LocationListener, RecognitionListener {
 
     private String[] permissions = {Manifest.permission.INTERNET,
             Manifest.permission.RECORD_AUDIO,
             Manifest.permission.CALL_PHONE,
             Manifest.permission.READ_CONTACTS,
             Manifest.permission.ACCESS_COARSE_LOCATION,
-            Manifest.permission.ACCESS_FINE_LOCATION};
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.VIBRATE,
+            Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE};
 
     private SpeechRecognizer speechRecognizer;
+
+    private String LOG_TAG = "TRIGGER";
+    private edu.cmu.pocketsphinx.SpeechRecognizer mRecognizer;
+    private Vibrator mVibrator;
+    private static int sensibility  = 40;
+    private static final String WAKEWORD_SEARCH = "TRIGGER_SEARCH";
+    private static final String KEYWORD_SEARCH = "hey app";
+
 
     private LocationManager locationManager;
     private double latitude, longitude;
@@ -88,6 +106,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
         init();
 
+        mVibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
 
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 
@@ -119,7 +138,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                 ContextCompat.getColor(this, R.color.color5)
         };
 
-        int[] heights = { 20, 24, 18, 23, 16 };
+        int[] heights = { 30, 24, 18, 23, 16 };
 
         btnListen = findViewById(R.id.btnListen);
         recognitionProgressView = (RecognitionProgressView) findViewById(R.id.recognition_view);
@@ -221,6 +240,106 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        setupTrigger();
+    }
+
+    /**
+     * Stop the recognizer.
+     * Since cancel() does trigger an onResult() call,
+     * we cancel the recognizer rather then stopping it.
+     */
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (mRecognizer != null) {
+            mRecognizer.removeListener(this);
+            mRecognizer.cancel();
+            mRecognizer.shutdown();
+            Log.d(LOG_TAG, "PocketSphinx Recognizer was shutdown");
+        }
+    }
+
+    // Trigger Recognition
+    /**
+     * Setup the Recognizer with a sensitivity value in the range [1..100]
+     * Where 1 means no false alarms but many true matches might be missed.
+     * and 100 most of the words will be correctly detected, but you will have many false alarms.
+     */
+    private void setupTrigger() {
+        try {
+            final Assets assets = new Assets(MainActivity.this);
+            final File assetDir = assets.syncAssets();
+            mRecognizer = SpeechRecognizerSetup.defaultSetup()
+                    .setAcousticModel(new File(assetDir, "models/en-us-ptm"))
+                    .setDictionary(new File(assetDir, "models/lm/words.dic"))
+                    .setKeywordThreshold(Float.valueOf("1.e-" + 2 * sensibility))
+                    .getRecognizer();
+            mRecognizer.addKeyphraseSearch(WAKEWORD_SEARCH, KEYWORD_SEARCH);
+            mRecognizer.addListener(this);
+            mRecognizer.startListening(WAKEWORD_SEARCH);
+            Log.d(LOG_TAG, "... listening");
+        } catch (IOException e) {
+            Log.e(LOG_TAG, e.toString());
+        }
+    }
+
+    //
+    // RecognitionListener Implementation
+    //
+
+    @Override
+    public void onBeginningOfSpeech() {
+        Log.d(LOG_TAG, "Beginning Of Speech");
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setSubtitle("~ ~ ~");
+        }
+    }
+
+    @Override
+    public void onEndOfSpeech() {
+        Log.d(LOG_TAG, "End Of Speech");
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setSubtitle("");
+        }
+    }
+
+    @Override
+    public void onPartialResult(final Hypothesis hypothesis) {
+        if (hypothesis != null) {
+            final String text = hypothesis.getHypstr();
+            Log.d(LOG_TAG, "on partial: " + text);
+            if (text.equals(KEYWORD_SEARCH)) {
+                mVibrator.vibrate(100);
+                if (getSupportActionBar() != null) {
+                    getSupportActionBar().setSubtitle("");
+                }
+                Log.d(LOG_TAG, "onPartialResult: " + "SUCCESSFUL");
+            }
+        }
+    }
+
+    @Override
+    public void onResult(final Hypothesis hypothesis) {
+        if (hypothesis != null) {
+            Log.d(LOG_TAG, "on Result: " + hypothesis.getHypstr() + " : " + hypothesis.getBestScore());
+            if (getSupportActionBar() != null) {
+                getSupportActionBar().setSubtitle("");
+            }
+        }
+    }
+
+    @Override
+    public void onError(final Exception e) {
+        Log.e(LOG_TAG, "on Error: " + e);
+    }
+
+    @Override
+    public void onTimeout() {
+        Log.d(LOG_TAG, "on Timeout");
+    }
 
     @Override
     protected void onDestroy() {
@@ -546,6 +665,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         });
 
     }
+
     private void show_weather(String location, String description,  String tempMax, String tempMin, String wind,String humidity, String sunrise, String sunset){
         Dialog dialog = new Dialog(this);
         dialog.setContentView(R.layout.weather);

@@ -27,6 +27,7 @@ dependencies {
     implementation 'com.github.zagum:SpeechRecognitionView:1.2.2'
     implementation 'com.andrognito.flashbar:flashbar:1.0.2'
     implementation 'com.github.KwabenBerko:OpenWeatherMap-Android-Library:2.0.1'
+    implementation project(path: ':pocketsphinx-android-5prealpha-release')
 
 
     testImplementation 'junit:junit:4.12'
