@@ -28,27 +28,27 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="15dp">
 
+        <!--<TextView-->
+            <!--android:id="@+id/tvTempMin"-->
+            <!--android:layout_width="wrap_content"-->
+            <!--android:layout_height="wrap_content"-->
+            <!--android:text="40"-->
+            <!--android:textSize="35dp"-->
+            <!--android:textStyle="bold"/>-->
+
+        <!--<TextView-->
+            <!--android:layout_width="wrap_content"-->
+            <!--android:layout_height="wrap_content"-->
+            <!--android:text="\u2103"-->
+            <!--android:textSize="25dp" />-->
+        <!--<TextView-->
+            <!--android:layout_width="wrap_content"-->
+            <!--android:layout_height="wrap_content"-->
+            <!--android:text=" - "-->
+            <!--android:textSize="20dp" />-->
+
         <TextView
             android:id="@+id/tvTempMax"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="40"
-            android:textSize="35dp"
-            android:textStyle="bold"/>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="\u2103"
-            android:textSize="25dp" />
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text=" - "
-            android:textSize="20dp" />
-
-        <TextView
-            android:id="@+id/tvTempMin"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="40"
@@ -70,7 +70,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Gió: "
+            android:text="Wind: "
             />
 
         <TextView
@@ -96,7 +96,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Độ ẩm: "
+            android:text="Humidity: "
             />
 
         <TextView
@@ -128,7 +128,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Mặt trời mọc: "
+                android:text="Sunrise: "
                 />
 
             <TextView
@@ -149,7 +149,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Mặt trời lặn: "
+                android:text="Sunset: "
                 />
 
             <TextView

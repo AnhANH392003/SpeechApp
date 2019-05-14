@@ -10,6 +10,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.database.Cursor;
 import android.location.Location;
 import android.location.LocationListener;
@@ -17,6 +18,7 @@ import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Vibrator;
+import android.provider.AlarmClock;
 import android.provider.ContactsContract;
 import android.provider.MediaStore;
 import android.speech.RecognizerIntent;
@@ -34,6 +36,7 @@ import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -65,7 +68,7 @@ import edu.cmu.pocketsphinx.Hypothesis;
 import edu.cmu.pocketsphinx.RecognitionListener;
 import edu.cmu.pocketsphinx.SpeechRecognizerSetup;
 
-public class MainActivity extends AppCompatActivity implements LocationListener, RecognitionListener {
+public class MainActivity extends AppCompatActivity implements LocationListener {
 
     private String[] permissions = {Manifest.permission.INTERNET,
             Manifest.permission.RECORD_AUDIO,
@@ -79,35 +82,40 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
     private SpeechRecognizer speechRecognizer;
 
     private String LOG_TAG = "TRIGGER";
-    private edu.cmu.pocketsphinx.SpeechRecognizer mRecognizer;
-    private Vibrator mVibrator;
-    private static int sensibility  = 40;
-    private static final String WAKEWORD_SEARCH = "TRIGGER_SEARCH";
-    private static final String KEYWORD_SEARCH = "hey app";
-
 
     private LocationManager locationManager;
     private double latitude, longitude;
     private OpenWeatherMapHelper weather;
 
 
-    private Button btnListen;
+    private ImageButton btnListen;
     private RecognitionProgressView recognitionProgressView;
 
     private List<Contact> contacts;
+    private List<Application> apps;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-
         requestPermission();
 
         init();
 
-        mVibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
 
+    }
+
+
+    /**
+     * setup init app
+     */
+    private void init(){
+        contacts = GetContactsIntoArrayList();
+        apps = getAllApplicationInPhone();
+
+
+        // Get phone's location
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
@@ -115,21 +123,50 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
             return;
         }
         Location location = locationManager.getLastKnownLocation(locationManager.NETWORK_PROVIDER);
-
-        weather = new OpenWeatherMapHelper(getString(R.string.OPEN_WEATHER_MAP_API_KEY));
-        weather.setUnits(Units.METRIC);
-        weather.setLang(Lang.VIETNAMESE);
-
-
         onLocationChanged(location);
 
-    }
+
+        //setup weather
+        weather = new OpenWeatherMapHelper(getString(R.string.OPEN_WEATHER_MAP_API_KEY));
+        weather.setUnits(Units.METRIC);
+        weather.setLang(Lang.ENGLISH);
 
 
-    /**
-     * set init app
-     */
-    private void init(){
+        // setup UI
+        btnListen = findViewById(R.id.btnListen);
+        recognitionProgressView = (RecognitionProgressView) findViewById(R.id.recognition_view);
+
+        btnListen.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                startRecognition();
+
+            }
+        });
+
+
+        // setup Speech Recognition
+        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
+
+        recognitionProgressView.setSpeechRecognizer(speechRecognizer);
+        recognitionProgressView.setRecognitionListener(new RecognitionListenerAdapter() {
+            @Override
+            public void onResults(Bundle results) {
+
+                finishRecognition();
+
+                ArrayList<String> matches = results
+                        .getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+
+                String text = matches.get(0);
+                Log.d(LOG_TAG, "onResults: "+ text);
+
+                processing_text(text);
+
+            }
+        });
+
         int[] colors = {
                 ContextCompat.getColor(this, R.color.color1),
                 ContextCompat.getColor(this, R.color.color2),
@@ -138,48 +175,14 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
                 ContextCompat.getColor(this, R.color.color5)
         };
 
-        int[] heights = { 30, 24, 18, 23, 16 };
+        int[] heights = {60, 76, 58, 80, 55};
 
-        btnListen = findViewById(R.id.btnListen);
-        recognitionProgressView = (RecognitionProgressView) findViewById(R.id.recognition_view);
-
-        contacts = new ArrayList<>();
-        GetContactsIntoArrayList();
-
-        btnListen.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-
-                recognitionProgressView.play();
-                startRecognition();
-
-                btnListen.setText("Recording");
-                btnListen.setEnabled(false);
-            }
-        });
-
-        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
-
-
-        recognitionProgressView.setSpeechRecognizer(speechRecognizer);
-        recognitionProgressView.setRecognitionListener(new RecognitionListenerAdapter() {
-            @Override
-            public void onResults(Bundle results) {
-
-                processing_text(results);
-                recognitionProgressView.stop();
-                recognitionProgressView.play();
-
-                btnListen.setText("Start");
-                btnListen.setEnabled(true);
-            }
-        });
         recognitionProgressView.setColors(colors);
         recognitionProgressView.setBarMaxHeightsInDp(heights);
-        recognitionProgressView.setCircleRadiusInDp(6); // kich thuoc cham tron
+        recognitionProgressView.setCircleRadiusInDp(8); // kich thuoc cham tron
         recognitionProgressView.setSpacingInDp(2); // khoang cach giua cac cham tron
-        recognitionProgressView.setIdleStateAmplitudeInDp(4); // bien do dao dong cua cham tron
-        recognitionProgressView.setRotationRadiusInDp(30); // kich thuoc vong quay cua cham tron
+        recognitionProgressView.setIdleStateAmplitudeInDp(8); // bien do dao dong cua cham tron
+        recognitionProgressView.setRotationRadiusInDp(50); // kich thuoc vong quay cua cham tron
         recognitionProgressView.play();
 
     }
@@ -217,33 +220,81 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
         }
     }
 
-    public void GetContactsIntoArrayList(){
+    /**
+     * get list contact in phone
+     */
+    public List<Contact> GetContactsIntoArrayList(){
+
+        List<Contact> contacts = new ArrayList<>();
 
         Cursor cursor = getContentResolver().query(ContactsContract.CommonDataKinds.Phone.CONTENT_URI, null,null, null, null);
 
         String name;
         String phonenumber;
+        String nameNumber;
 
         while (cursor.moveToNext()) {
 
             name = cursor.getString(cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME));
+            nameNumber = name;
             name = name.toLowerCase();
 
             phonenumber = cursor.getString(cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER));
 
             Log.d("CONTACT",name + " "  + ":" + " " + phonenumber);
 
-            contacts.add(new Contact(name, phonenumber));
+            contacts.add(new Contact(name, phonenumber, nameNumber));
         }
 
         cursor.close();
 
+        return contacts;
+
+    }
+
+    /**
+     * get All Application in Phone
+     */
+    private List<Application> getAllApplicationInPhone (){
+
+        List<Application> apps = new ArrayList<>();
+
+        apps.add(new Application("facebook", "com.facebook.katana"));
+        apps.add(new Application("youtube", "com.google.android.youtube"));
+        apps.add(new Application("instagram", "com.instagram.android"));
+        apps.add(new Application("nhạc", "com.zing.mp3"));
+        apps.add(new Application("messenger", "com.facebook.orca"));
+        apps.add(new Application("map", "com.google.android.apps.maps"));
+        apps.add(new Application("bản đồ", "com.google.android.apps.maps"));
+
+
+
+        PackageManager manager = getPackageManager();
+        Intent i = new Intent(Intent.ACTION_MAIN, null);
+        i.addCategory(Intent.CATEGORY_LAUNCHER);
+
+        List<ResolveInfo> availableActivities = manager.queryIntentActivities(i, 0);
+        for (ResolveInfo resolveInfo : availableActivities){
+            Application app = new Application(resolveInfo.loadLabel(manager), resolveInfo.activityInfo.packageName);
+            Log.d("MainActivity", "getAllApplicationInPhone: " + app.getName());
+            apps.add(app);
+        }
+
+        return apps;
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        setupTrigger();
+
+        Log.d(LOG_TAG, "stop TRIGGER");
+        //Start service
+        Intent intent = new Intent(this, Trigger.class);
+        stopService(intent);
+
+        //start Recognition Speech
+        startRecognition();
+
     }
 
     /**
@@ -254,104 +305,44 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
     @Override
     protected void onPause() {
         super.onPause();
-        if (mRecognizer != null) {
-            mRecognizer.removeListener(this);
-            mRecognizer.cancel();
-            mRecognizer.shutdown();
-            Log.d(LOG_TAG, "PocketSphinx Recognizer was shutdown");
-        }
+
+        Log.d(LOG_TAG, "start TRIGGER");
+
+        finishRecognition();
+        speechRecognizer.stopListening();
+
+        //Start service
+        Intent intent = new Intent(this, Trigger.class);
+        startService(intent);
+
     }
 
-    // Trigger Recognition
-    /**
-     * Setup the Recognizer with a sensitivity value in the range [1..100]
-     * Where 1 means no false alarms but many true matches might be missed.
-     * and 100 most of the words will be correctly detected, but you will have many false alarms.
-     */
-    private void setupTrigger() {
-        try {
-            final Assets assets = new Assets(MainActivity.this);
-            final File assetDir = assets.syncAssets();
-            mRecognizer = SpeechRecognizerSetup.defaultSetup()
-                    .setAcousticModel(new File(assetDir, "models/en-us-ptm"))
-                    .setDictionary(new File(assetDir, "models/lm/words.dic"))
-                    .setKeywordThreshold(Float.valueOf("1.e-" + 2 * sensibility))
-                    .getRecognizer();
-            mRecognizer.addKeyphraseSearch(WAKEWORD_SEARCH, KEYWORD_SEARCH);
-            mRecognizer.addListener(this);
-            mRecognizer.startListening(WAKEWORD_SEARCH);
-            Log.d(LOG_TAG, "... listening");
-        } catch (IOException e) {
-            Log.e(LOG_TAG, e.toString());
-        }
-    }
-
-    //
-    // RecognitionListener Implementation
-    //
-
-    @Override
-    public void onBeginningOfSpeech() {
-        Log.d(LOG_TAG, "Beginning Of Speech");
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().setSubtitle("~ ~ ~");
-        }
-    }
-
-    @Override
-    public void onEndOfSpeech() {
-        Log.d(LOG_TAG, "End Of Speech");
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().setSubtitle("");
-        }
-    }
-
-    @Override
-    public void onPartialResult(final Hypothesis hypothesis) {
-        if (hypothesis != null) {
-            final String text = hypothesis.getHypstr();
-            Log.d(LOG_TAG, "on partial: " + text);
-            if (text.equals(KEYWORD_SEARCH)) {
-                mVibrator.vibrate(100);
-                if (getSupportActionBar() != null) {
-                    getSupportActionBar().setSubtitle("");
-                }
-                Log.d(LOG_TAG, "onPartialResult: " + "SUCCESSFUL");
-            }
-        }
-    }
-
-    @Override
-    public void onResult(final Hypothesis hypothesis) {
-        if (hypothesis != null) {
-            Log.d(LOG_TAG, "on Result: " + hypothesis.getHypstr() + " : " + hypothesis.getBestScore());
-            if (getSupportActionBar() != null) {
-                getSupportActionBar().setSubtitle("");
-            }
-        }
-    }
-
-    @Override
-    public void onError(final Exception e) {
-        Log.e(LOG_TAG, "on Error: " + e);
-    }
-
-    @Override
-    public void onTimeout() {
-        Log.d(LOG_TAG, "on Timeout");
-    }
 
     @Override
     protected void onDestroy() {
+        super.onDestroy();
+
         if (speechRecognizer != null) {
 
             speechRecognizer.destroy();
 
         }
-        super.onDestroy();
+
+        //Start service
+        Intent intent = new Intent(this, Trigger.class);
+        startService(intent);
+
     }
 
+
+    /**
+     * Start Google API recognition
+     */
     private void startRecognition() {
+
+        recognitionProgressView.play();
+        btnListen.setVisibility(View.GONE);
+        recognitionProgressView.setVisibility(View.VISIBLE);
 
         Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
 
@@ -360,170 +351,47 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "vi");
 
         speechRecognizer.startListening(intent);
-
     }
 
+    private void finishRecognition(){
+        recognitionProgressView.stop();
+        recognitionProgressView.play();
+
+        btnListen.setVisibility(View.VISIBLE);
+        recognitionProgressView.setVisibility(View.GONE);
+    }
 
     /**
      * Processing text after recognition speech
-     * @param results: text after recognition speech
+     * @param text: text after recognition speech
      */
-    private void processing_text(Bundle results) {
-        ArrayList<String> matches = results
-                .getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+    private void processing_text(String text) {
 
-        String text = matches.get(0);
         text = text.toLowerCase();
 
 
         if (text.contains("gọi")){
 
-            if (text.contains("cho")){
-                String string_start = "cho";
-
-                int start = text.indexOf(string_start) + string_start.length()+1;
-                int end = text.length();
-
-                String name = text.substring(start, end);
-
-                Log.d("name: ", name);
-
-                ArrayList<String> nameCall = new ArrayList<>();
-                final ArrayList<String> phoneCall = new ArrayList<>();
-
-                for (Contact contact : contacts){
-                    Log.d("contact_name: ", contact.getName());
-                    if (contact.getName().contains(name) || name.contains(contact.getName())){
-                        nameCall.add(contact.getName());
-                        phoneCall.add(contact.getPhone());
-                    }
-                }
-                if (nameCall.size() > 1){
-
-                    ArrayAdapter adapter = new ArrayAdapter<String>(this, R.layout.contact, nameCall);
-
-                    final Dialog dialog = new Dialog(this);
-                    dialog.setContentView(R.layout.list_contact);
-                    ListView listView = dialog.findViewById(R.id.contact_list);
-                    listView.setAdapter(adapter);
-                    listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-                        @Override
-                        public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                            phone_call(phoneCall.get(position));
-                        }
-                    });
-
-                    Button cancel = dialog.findViewById(R.id.cancel);
-                    cancel.setOnClickListener(new View.OnClickListener() {
-                        @Override
-                        public void onClick(View v) {
-                            dialog.dismiss();
-                        }
-                    });
-
-                    dialog.setCancelable(false);
-                    dialog.show();
-                }
-                else if(nameCall.size() == 1){
-                    phone_call(phoneCall.get(0));
-                }else{
-                    show_alert(this, "Lỗi", "Người liên lạc không được tìm thấy ");
-                }
-
-            }else{
-                String[] t = matches.get(0).split(" ");
-                String number = "";
-                for (String i : t){
-
-                    Pattern pattern = Pattern.compile("\\d*");
-                    Matcher matcher = pattern.matcher(i);
-                    Log.d("Text: ", i);
-                    if (matcher.matches()) {
-                        number += i;
-                    }
-                }
-
-                phone_call(number);
-            }
+            call(text);
 
         }
         else if (text.contains("tìm")){
 
-            if(text.contains("đường")){
+            search(text);
 
-                String string_start = "đến";
-
-                int start = text.indexOf(string_start) + string_start.length();
-                int end = text.length();
-
-                String location = text.substring(start, end);
-                navigation(location);
-
-                Toast.makeText(this, "Tim duong", Toast.LENGTH_SHORT).show();
-
-            }else if (text.contains("gần")){
-
-                String string_start = "tìm";
-                String string_end = "gần";
-
-                int start = text.indexOf(string_start) + string_start.length();
-                int end = text.indexOf(string_end);
-
-                String location = text.substring(start, end);
-                search_location(location);
-
-                Toast.makeText(this, "Tim gan nhat", Toast.LENGTH_LONG).show();
-
-            }else{
-
-                String string_start = "tìm";
-
-                int start = text.indexOf(string_start) + string_start.length();
-                int end = text.length();
-
-                String key = text.substring(start, end);
-
-                search_google(key);
-            }
         }
         else if(text.contains("mở")){
 
-            if (text.contains("chụp") || text.contains("camera")){
-                Intent intent=new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-                startActivity(intent);
-
-            }
-            else if (text.contains("ảnh")){
-                Intent intent = new Intent();
-                intent.setType("image/*");
-                intent.setAction(Intent.ACTION_VIEW);
-                startActivity(intent);
-            }
-            else if (text.contains("youtube")){
-                lauch_application("com.google.android.youtube");
-            }
-            else if (text.contains("mp3") || text.contains("nhạc")){
-                lauch_application("com.zing.mp3");
-            }
-            else if (text.contains("face")){
-                lauch_application("com.facebook.katana");
-            }
-            else if (text.contains("messenger")){
-                lauch_application("com.facebook.orca");
-            }
-            else if (text.contains("instagram")){
-                lauch_application("com.instagram.android");
-            }
-            else if(text.contains("map")){
-                lauch_application("com.google.android.apps.maps");
-            }else{
-                show_alert(MainActivity.this, "", "Yêu cầu của bạn hiện tại đang được phát triển.");
-            }
-
-
+            app(text);
         }
         else if (text.contains("thời tiết")){
             weather();
+        }
+        else if (text.contains("báo thức")){
+            alarm(text);
+        }
+        else if ( text.contains("đếm ngược")){
+            timer(text);
         }
         else{
             search_google(text);
@@ -553,10 +421,165 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
 
 
     /**
+     * set alarm
+     * @param text
+     */
+    private void alarm(String text){
+
+        String string_start = "lúc";
+        String string_end = "giờ";
+
+        int start = text.indexOf(string_start) + string_start.length()+1;
+        int end = text.indexOf(string_end) + string_end.length();
+
+
+        String string_hour = text.substring(start, end);
+
+        string_start = "giờ";
+        start = text.indexOf(string_start) + string_start.length()+1;
+
+        if (text.contains("phút")){
+            string_end = "phút";
+            end = text.indexOf(string_end) + string_end.length();
+        }else{
+            end = text.length();
+        }
+
+        String string_minutes = text.substring(start, end);
+
+        String message = "Báo thức bằng Speech";
+
+        createAlarm(message, Integer.valueOf(string_hour), Integer.valueOf(string_minutes));
+
+    }
+    private void createAlarm(String message, int hour, int minutes) {
+        Intent intent = new Intent(AlarmClock.ACTION_SET_ALARM)
+                .putExtra(AlarmClock.EXTRA_MESSAGE, message)
+                .putExtra(AlarmClock.EXTRA_HOUR, hour)
+                .putExtra(AlarmClock.EXTRA_MINUTES, minutes);
+        if (intent.resolveActivity(getPackageManager()) != null) {
+            startActivity(intent);
+        }
+    }
+
+
+    private void timer(String text){
+
+        String[] t = text.split(" ");
+        String number = "";
+        for (String i : t){
+
+            Pattern pattern = Pattern.compile("\\d*");
+            Matcher matcher = pattern.matcher(i);
+            Log.d("Text: ", i);
+            if (matcher.matches()) {
+                number += i;
+            }
+        }
+
+        startTimer("Đếm ngược bằng Speech", Integer.valueOf(number)*60);
+
+    }
+
+    public void startTimer(String message, int seconds) {
+        Intent intent = new Intent(AlarmClock.ACTION_SET_TIMER)
+                .putExtra(AlarmClock.EXTRA_MESSAGE, message)
+                .putExtra(AlarmClock.EXTRA_LENGTH, seconds)
+                .putExtra(AlarmClock.EXTRA_SKIP_UI, true);
+        if (intent.resolveActivity(getPackageManager()) != null) {
+            startActivity(intent);
+        }
+    }
+
+
+
+    /**
+     * processing text call phone  number
+     * @param text
+     */
+    private void call(String text){
+
+        if (text.contains("cho")){
+            String string_start = "cho";
+
+            int start = text.indexOf(string_start) + string_start.length()+1;
+            int end = text.length();
+
+            String name = text.substring(start, end);
+
+            Log.d("name: ", name);
+
+            ArrayList<String> nameCall = new ArrayList<>();
+            final ArrayList<String> phoneCall = new ArrayList<>();
+
+            for (Contact contact : contacts){
+                Log.d("contact_name: ", contact.getName());
+                if (contact.getName().contains(name) || name.contains(contact.getName())){
+                    nameCall.add(contact.getNameNumber());
+                    phoneCall.add(contact.getPhone());
+                }
+            }
+            if (nameCall.size() > 1){
+
+                ArrayAdapter adapter = new ArrayAdapter<String>(this, R.layout.contact, nameCall);
+
+                final Dialog dialog = new Dialog(this);
+                dialog.setContentView(R.layout.list_contact);
+                ListView listView = dialog.findViewById(R.id.contact_list);
+                listView.setAdapter(adapter);
+                listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                    @Override
+                    public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                        phone_call_number(phoneCall.get(position));
+                    }
+                });
+
+                ImageButton cancel = dialog.findViewById(R.id.cancel);
+                cancel.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        dialog.dismiss();
+                    }
+                });
+
+                dialog.setCancelable(false);
+                dialog.show();
+            }
+            else if(nameCall.size() == 1){
+                phone_call_number(phoneCall.get(0));
+            }else{
+                show_alert(this, "Lỗi", "Người liên lạc không được tìm thấy ");
+            }
+
+        }
+        else if (text.contains("taxi")){
+
+            phone_call_number("024 3232 3232");
+
+        }
+        else{
+            String[] t = text.split(" ");
+            String number = "";
+            for (String i : t){
+
+                Pattern pattern = Pattern.compile("\\d*");
+                Matcher matcher = pattern.matcher(i);
+                Log.d("Text: ", i);
+                if (matcher.matches()) {
+                    number += i;
+                }
+            }
+
+            phone_call_number(number);
+        }
+
+    }
+
+    /**
      * Call phone of numbers
      * @param number: phonenumber
      */
-    private void phone_call(String number){
+    private void phone_call_number(String number){
 
         Intent callIntent = new Intent(Intent.ACTION_CALL);
         callIntent.setData(Uri.parse("tel:"+number));
@@ -564,6 +587,44 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
 
     }
 
+    private void search(String text){
+        if(text.contains("đường")){
+
+            String string_start = "đến";
+
+            int start = text.indexOf(string_start) + string_start.length();
+            int end = text.length();
+
+            String location = text.substring(start, end);
+            navigation(location);
+
+            Toast.makeText(this, "Tim duong", Toast.LENGTH_SHORT).show();
+
+        }else if (text.contains("gần")){
+
+            String string_start = "tìm";
+            String string_end = "gần";
+
+            int start = text.indexOf(string_start) + string_start.length();
+            int end = text.indexOf(string_end);
+
+            String location = text.substring(start, end);
+            search_location(location);
+
+            Toast.makeText(this, "Tim gan nhat", Toast.LENGTH_LONG).show();
+
+        }else{
+
+            String string_start = "tìm";
+
+            int start = text.indexOf(string_start) + string_start.length();
+            int end = text.length();
+
+            String key = text.substring(start, end);
+
+            search_google(key);
+        }
+    }
 
     /**
      * Search to the google by key search
@@ -603,6 +664,46 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
         startActivity(mapIntent);
     }
 
+
+    private String existApplication(String name){
+
+        for(int i =0; i < apps.size(); i++){
+            if (name.contains(apps.get(i).getName())){
+                return apps.get(i).getPackageName();
+            }
+        }
+
+        return null;
+    }
+
+    private void app(String text){
+        if (text.contains("chụp") || text.contains("camera")){
+            Intent intent=new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+            startActivity(intent);
+
+        }
+        else if (text.contains("ảnh")){
+            Intent intent = new Intent();
+            intent.setType("image/*");
+            intent.setAction(Intent.ACTION_VIEW);
+            startActivity(intent);
+        }else{
+
+            String pachageName = existApplication(text);
+            if(pachageName != null){
+                lauch_application(pachageName);
+            }else{
+                show_alert(MainActivity.this, "", "Không tìm thấy ứng dụng trên điện thoại.");
+            }
+        }
+
+
+    }
+
+    /**
+     * Lauching application
+     * @param idApp: id Application
+     */
     private void lauch_application(String idApp){
 
         Toast.makeText(getApplicationContext(), idApp, Toast.LENGTH_SHORT).show();
@@ -616,6 +717,10 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
         }
     }
 
+
+    /**
+     * Get Weather in phone's location
+     */
     private void weather(){
 
         final ProgressDialog progressDialog = new ProgressDialog(this);
@@ -650,10 +755,9 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
                 String description = currentWeather.getWeather().get(0).getDescription();
                 String wind = String.valueOf(currentWeather.getWind().getSpeed());
                 String tempMax = String.valueOf(currentWeather.getMain().getTempMax());
-                String tempMin = String.valueOf(currentWeather.getMain().getTempMin());
                 String humidity = String.valueOf(currentWeather.getMain().getHumidity());
 
-                show_weather(location, description, tempMax, tempMin, wind, humidity,  sunrise, sunset);
+                show_weather(location, description, tempMax, wind, humidity,  sunrise, sunset);
             }
 
             @Override
@@ -666,18 +770,28 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
 
     }
 
-    private void show_weather(String location, String description,  String tempMax, String tempMin, String wind,String humidity, String sunrise, String sunset){
+
+    /**
+     * Show dialog weather in location
+     * @param location
+     * @param description
+     * @param tempMax
+     * @param wind
+     * @param humidity
+     * @param sunrise
+     * @param sunset
+     */
+    private void show_weather(String location, String description,  String tempMax, String wind,String humidity, String sunrise, String sunset){
         Dialog dialog = new Dialog(this);
         dialog.setContentView(R.layout.weather);
 
         dialog.setContentView(R.layout.weather);
 
-        TextView tvLocation, tvDescription, tvTempMax, tvTempMin, tvWind, tvHumidity, tvSunrise, tvSunset;
+        TextView tvLocation, tvDescription, tvTempMax, tvWind, tvHumidity, tvSunrise, tvSunset;
 
         tvLocation = dialog.findViewById(R.id.tvLocation);
         tvDescription = dialog.findViewById(R.id.tvDescription);
         tvTempMax = dialog.findViewById(R.id.tvTempMax);
-        tvTempMin = dialog.findViewById(R.id.tvTempMin);
         tvWind = dialog.findViewById(R.id.tvWind);
         tvHumidity = dialog.findViewById(R.id.tvHumidity);
         tvSunrise = dialog.findViewById(R.id.tvSunrise);
@@ -687,7 +801,6 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
         tvLocation.setText(location);
         tvDescription.setText(description);
         tvTempMax.setText(tempMax);
-        tvTempMin.setText(tempMin);
         tvWind.setText(wind);
         tvHumidity.setText(humidity);
         tvSunrise.setText(sunrise);
