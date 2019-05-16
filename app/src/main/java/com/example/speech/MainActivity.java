@@ -11,12 +11,14 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.content.res.Configuration;
 import android.database.Cursor;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Environment;
 import android.os.Vibrator;
 import android.provider.AlarmClock;
 import android.provider.ContactsContract;
@@ -31,12 +33,18 @@ import android.support.v4.view.PagerAdapter;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.ImageButton;
+import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -48,25 +56,24 @@ import com.kwabenaberko.openweathermaplib.constants.Lang;
 import com.kwabenaberko.openweathermaplib.constants.Units;
 import com.kwabenaberko.openweathermaplib.implementation.OpenWeatherMapHelper;
 import com.kwabenaberko.openweathermaplib.implementation.callbacks.CurrentWeatherCallback;
+import com.kwabenaberko.openweathermaplib.models.common.Sys;
 import com.kwabenaberko.openweathermaplib.models.currentweather.CurrentWeather;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.text.DateFormat;
+import java.text.FieldPosition;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.TimeZone;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import edu.cmu.pocketsphinx.Assets;
-import edu.cmu.pocketsphinx.Hypothesis;
-import edu.cmu.pocketsphinx.RecognitionListener;
-import edu.cmu.pocketsphinx.SpeechRecognizerSetup;
 
 public class MainActivity extends AppCompatActivity implements LocationListener {
 
@@ -77,7 +84,8 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
             Manifest.permission.ACCESS_COARSE_LOCATION,
             Manifest.permission.ACCESS_FINE_LOCATION,
             Manifest.permission.VIBRATE,
-            Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE};
+            Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE,
+            Manifest.permission.SET_ALARM};
 
     private SpeechRecognizer speechRecognizer;
 
@@ -87,8 +95,16 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
     private double latitude, longitude;
     private OpenWeatherMapHelper weather;
 
+    private RecyclerView mMessageRecycler;
+    private List<Message> messageList;
+    private MessageListAdapter mMessageAdapter;
+    private ImageButton btnListen, btnKeyBoard;
+    private EditText edittext_chatbox;
+    private LinearLayout layout_chatbox;
+    private FrameLayout layout_speech;
 
-    private ImageButton btnListen;
+    private boolean isRecognitionSpeech;
+
     private RecognitionProgressView recognitionProgressView;
 
     private List<Contact> contacts;
@@ -129,12 +145,57 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         //setup weather
         weather = new OpenWeatherMapHelper(getString(R.string.OPEN_WEATHER_MAP_API_KEY));
         weather.setUnits(Units.METRIC);
-        weather.setLang(Lang.ENGLISH);
+        weather.setLang(Lang.VIETNAMESE);
 
 
-        // setup UI
+        // setup UI Message
+        mMessageRecycler = (RecyclerView) findViewById(R.id.reyclerview_message_list);
+
+        layout_chatbox = findViewById(R.id.layout_chatbox);
+        layout_speech = findViewById(R.id.layout_speech);
+
+
+        btnKeyBoard = findViewById(R.id.btnKeyBoard);
         btnListen = findViewById(R.id.btnListen);
         recognitionProgressView = (RecognitionProgressView) findViewById(R.id.recognition_view);
+
+
+
+        messageList = new ArrayList<>();
+
+        mMessageAdapter = new MessageListAdapter(this, messageList);
+
+        mMessageRecycler.setAdapter(mMessageAdapter);
+        mMessageRecycler.setLayoutManager(new LinearLayoutManager(this));
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+
+            }
+        }).start();
+
+        readCsvMessage();
+
+        sendMessage("Chào bạn, Tôi có thể giúp gì cho bạn!", false);
+
+        isRecognitionSpeech = true;
+
+        layout_chatbox.setVisibility(View.INVISIBLE);
+
+
+        edittext_chatbox = (EditText) findViewById(R.id.edittext_chatbox);
+
+        findViewById(R.id.button_chatbox_send).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                String text = edittext_chatbox.getText().toString();
+                edittext_chatbox.setText("");
+                sendMessage(text, true);
+
+                processing_text(text);
+            }
+        });
 
         btnListen.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -145,7 +206,27 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
             }
         });
 
+        btnKeyBoard.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                SpeechToKeyboard();
+            }
+        });
 
+        findViewById(R.id.btnListesInChatbox).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                KeyboardToSpeech();
+                startRecognition();
+            }
+        });
+
+        setUiRecognition();
+
+
+    }
+
+    private void setUiRecognition(){
         // setup Speech Recognition
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
 
@@ -162,7 +243,18 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                 String text = matches.get(0);
                 Log.d(LOG_TAG, "onResults: "+ text);
 
+                sendMessage(text, true);
+
                 processing_text(text);
+
+            }
+        });
+        recognitionProgressView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                finishRecognition();
+                speechRecognizer.stopListening();
 
             }
         });
@@ -179,12 +271,20 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
         recognitionProgressView.setColors(colors);
         recognitionProgressView.setBarMaxHeightsInDp(heights);
-        recognitionProgressView.setCircleRadiusInDp(8); // kich thuoc cham tron
+        recognitionProgressView.setCircleRadiusInDp(6); // kich thuoc cham tron
         recognitionProgressView.setSpacingInDp(2); // khoang cach giua cac cham tron
         recognitionProgressView.setIdleStateAmplitudeInDp(8); // bien do dao dong cua cham tron
-        recognitionProgressView.setRotationRadiusInDp(50); // kich thuoc vong quay cua cham tron
+        recognitionProgressView.setRotationRadiusInDp(40); // kich thuoc vong quay cua cham tron
         recognitionProgressView.play();
 
+    }
+
+
+    private void sendMessage(String text, boolean isUser) {
+
+        messageList.add(new Message(text, isUser, System.currentTimeMillis()));
+        mMessageAdapter.notifyDataSetChanged();
+        writeCsvMessage();
     }
 
 
@@ -292,8 +392,10 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         Intent intent = new Intent(this, Trigger.class);
         stopService(intent);
 
-        //start Recognition Speech
-        startRecognition();
+        if(isRecognitionSpeech){
+            //start Recognition Speech
+            startRecognition();
+        }
 
     }
 
@@ -329,19 +431,129 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         }
 
         //Start service
-        Intent intent = new Intent(this, Trigger.class);
-        startService(intent);
+         Intent intent = new Intent(this, Trigger.class);
+         stopService(intent);
 
     }
 
+
+    private void writeCsvMessage(){
+        File folder = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), "SpeechApplication");
+        Log.d("writeCsvMessage: ", folder.getAbsolutePath());
+        if(!folder.exists()){
+            folder.mkdirs();
+        }
+
+        File csv = new File(folder, "message.csv");
+        Log.d("writeCsvMessage: ", "CSV: " + csv.getAbsolutePath());
+        if(!csv.exists()){
+            try {
+                csv.createNewFile();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+        }
+
+        String data = "";
+        for (Message m : messageList ){
+            data += m.getMessage() + ";" + m.getCreatedAt() + ";" + String.valueOf(m.isSender()) + "\n";
+        }
+
+        FileWriter fw = null;
+        try {
+
+            fw = new FileWriter(csv.getAbsoluteFile());
+            BufferedWriter bw = new BufferedWriter(fw);
+            bw.write(data);
+            bw.close();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void readCsvMessage(){
+
+        File folder = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), "SpeechApplication").getAbsoluteFile();
+
+        if(folder.exists()){
+
+            File csv = new File(folder, "message.csv");
+
+            if(csv.exists()){
+
+                BufferedReader br = null;
+                try {
+                    String m;
+                    br = new BufferedReader(new FileReader(csv));
+                    while ((m = br.readLine()) != null) {
+
+                        String[] ms = m.split(";");
+                        if(ms.length == 3){
+                            String message = ms[0];
+                            long time = Long.parseLong(ms[1]);
+                            boolean isUser = Boolean.valueOf(ms[2]);
+
+                            if(!message.equals("Chào bạn, Tôi có thể giúp gì cho bạn!")){
+                                messageList.add(new Message(message, isUser, time));
+                            }
+                        }
+                    }
+                    mMessageAdapter.notifyDataSetChanged();
+
+
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } finally {
+                    try {
+                        if (br != null)br.close();
+                    } catch (IOException ex) {
+                        ex.printStackTrace();
+                    }
+                }
+
+            }
+
+
+        }
+
+    }
+
+    /**
+     * convert theme Keyboard to Speech
+     */
+    private void KeyboardToSpeech(){
+        layout_chatbox.setVisibility(View.INVISIBLE);
+        layout_speech.setVisibility(View.VISIBLE);
+
+        closeKeyboard();
+    }
+
+    /**
+     * convert theme Speech to Keyboard
+     */
+    private void SpeechToKeyboard(){
+
+        finishRecognition();
+
+        showKeyboard();
+        isRecognitionSpeech = false;
+
+        layout_chatbox.setVisibility(View.VISIBLE);
+        layout_speech.setVisibility(View.INVISIBLE);
+
+    }
 
     /**
      * Start Google API recognition
      */
     private void startRecognition() {
 
-        recognitionProgressView.play();
         btnListen.setVisibility(View.GONE);
+        btnKeyBoard.setVisibility(View.GONE);
+
+        recognitionProgressView.play();
         recognitionProgressView.setVisibility(View.VISIBLE);
 
         Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
@@ -354,11 +566,25 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
     }
 
     private void finishRecognition(){
+
+        btnListen.setVisibility(View.VISIBLE);
+        btnKeyBoard.setVisibility(View.VISIBLE);
+
         recognitionProgressView.stop();
         recognitionProgressView.play();
 
-        btnListen.setVisibility(View.VISIBLE);
         recognitionProgressView.setVisibility(View.GONE);
+    }
+
+    public void showKeyboard(){
+        edittext_chatbox.requestFocus();
+        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+        imm.showSoftInput(edittext_chatbox, InputMethodManager.SHOW_IMPLICIT);
+    }
+
+    public void closeKeyboard(){
+        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+        imm.hideSoftInputFromWindow(edittext_chatbox.getWindowToken(), 0);
     }
 
     /**
@@ -426,32 +652,32 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
      */
     private void alarm(String text){
 
-        String string_start = "lúc";
-        String string_end = "giờ";
+        if (text.contains(":")){
 
-        int start = text.indexOf(string_start) + string_start.length()+1;
-        int end = text.indexOf(string_end) + string_end.length();
+            String[] ls = text.split(" ");
+            String[] lstemp = ls[4].split(":");
+            int hour = Integer.parseInt(lstemp[0]);
+            int minutes = Integer.parseInt(lstemp[1]);
 
 
-        String string_hour = text.substring(start, end);
-
-        string_start = "giờ";
-        start = text.indexOf(string_start) + string_start.length()+1;
-
-        if (text.contains("phút")){
-            string_end = "phút";
-            end = text.indexOf(string_end) + string_end.length();
-        }else{
-            end = text.length();
+            String message = "Báo thức bằng Speech";
+            createAlarm(message, hour, minutes);
         }
-
-        String string_minutes = text.substring(start, end);
-
-        String message = "Báo thức bằng Speech";
-
-        createAlarm(message, Integer.valueOf(string_hour), Integer.valueOf(string_minutes));
-
+        else {
+            String[] ls = text.split(" ");
+            int hour = Integer.parseInt(ls[4]);
+            int minutes = Integer.parseInt(ls[6]);
+            String message = "Báo thức bằng Speech";
+            createAlarm(message, hour, minutes);
+        }
     }
+
+    /**
+     * create Alarm
+     * @param message
+     * @param hour
+     * @param minutes
+     */
     private void createAlarm(String message, int hour, int minutes) {
         Intent intent = new Intent(AlarmClock.ACTION_SET_ALARM)
                 .putExtra(AlarmClock.EXTRA_MESSAGE, message)
@@ -463,6 +689,10 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
     }
 
 
+    /**
+     * set Timer
+     * @param text
+     */
     private void timer(String text){
 
         String[] t = text.split(" ");
@@ -481,12 +711,17 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
     }
 
+    /**
+     * Create timer
+     * @param message
+     * @param seconds
+     */
     public void startTimer(String message, int seconds) {
         Intent intent = new Intent(AlarmClock.ACTION_SET_TIMER)
                 .putExtra(AlarmClock.EXTRA_MESSAGE, message)
-                .putExtra(AlarmClock.EXTRA_LENGTH, seconds)
-                .putExtra(AlarmClock.EXTRA_SKIP_UI, true);
+                .putExtra(AlarmClock.EXTRA_LENGTH, seconds);
         if (intent.resolveActivity(getPackageManager()) != null) {
+            Toast.makeText(getApplicationContext(), "Đếm ngược: " + String.valueOf(seconds /60) , Toast.LENGTH_LONG ).show();
             startActivity(intent);
         }
     }
@@ -509,7 +744,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
             Log.d("name: ", name);
 
-            ArrayList<String> nameCall = new ArrayList<>();
+            final ArrayList<String> nameCall = new ArrayList<>();
             final ArrayList<String> phoneCall = new ArrayList<>();
 
             for (Contact contact : contacts){
@@ -530,15 +765,11 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                 listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
                     @Override
                     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                        phone_call_number(phoneCall.get(position));
-                    }
-                });
-
-                ImageButton cancel = dialog.findViewById(R.id.cancel);
-                cancel.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
                         dialog.dismiss();
+
+                        sendMessage("Call:" + nameCall.get(position), false);
+
+                        phone_call_number(phoneCall.get(position));
                     }
                 });
 
@@ -548,14 +779,16 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
             else if(nameCall.size() == 1){
                 phone_call_number(phoneCall.get(0));
             }else{
-                show_alert(this, "Lỗi", "Người liên lạc không được tìm thấy ");
+
+                sendMessage("Không tìm thấy tên người liên hệ trong danh bạ.", false);
+
             }
 
         }
         else if (text.contains("taxi")){
 
             phone_call_number("024 3232 3232");
-
+            sendMessage("Gọi taxi G7", false);
         }
         else{
             String[] t = text.split(" ");
@@ -569,6 +802,8 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                     number += i;
                 }
             }
+
+            sendMessage("Call: "+number, false);
 
             phone_call_number(number);
         }
@@ -665,6 +900,11 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
     }
 
 
+    /**
+     * Check exist application in phone
+     * @param name
+     * @return
+     */
     private String existApplication(String name){
 
         for(int i =0; i < apps.size(); i++){
@@ -676,23 +916,37 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         return null;
     }
 
+    /**
+     * Lauch application
+     * @param text
+     */
     private void app(String text){
         if (text.contains("chụp") || text.contains("camera")){
             Intent intent=new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
             startActivity(intent);
-
+            sendMessage("Ok", false);
         }
         else if (text.contains("ảnh")){
             Intent intent = new Intent();
             intent.setType("image/*");
             intent.setAction(Intent.ACTION_VIEW);
+
             startActivity(intent);
+
+
+            sendMessage("Ok", false);
+
         }else{
 
             String pachageName = existApplication(text);
             if(pachageName != null){
                 lauch_application(pachageName);
+
+                sendMessage("Ok", false);
             }else{
+
+                sendMessage("Không tìm thấy ứng dụng trên điện thoại của bạn", false);
+
                 show_alert(MainActivity.this, "", "Không tìm thấy ứng dụng trên điện thoại.");
             }
         }
@@ -782,6 +1036,11 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
      * @param sunset
      */
     private void show_weather(String location, String description,  String tempMax, String wind,String humidity, String sunrise, String sunset){
+
+        String w = "Thời tiết " + location + " : "+description + " " + tempMax + "\u2103";
+
+        sendMessage(w, false);
+
         Dialog dialog = new Dialog(this);
         dialog.setContentView(R.layout.weather);
 

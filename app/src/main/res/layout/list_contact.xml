@@ -38,14 +38,4 @@
         </ListView>
 
     </LinearLayout>
-
-    <ImageButton
-        android:id="@+id/cancel"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="top|right"
-        android:layout_marginLeft="5dp"
-        android:src="@drawable/ic_cancel"
-        android:background="@null"/>
-
 </FrameLayout>

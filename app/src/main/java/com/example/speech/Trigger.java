@@ -22,9 +22,9 @@ public class Trigger extends Service implements RecognitionListener {
     private String LOG_TAG = "TRIGGER";
     private SpeechRecognizer mRecognizer;
     private Vibrator mVibrator;
-    private static int sensibility  = 25;
+    private static int sensibility  = 10;
     private static final String WAKEWORD_SEARCH = "TRIGGER_SEARCH";
-    private static final String KEYWORD_SEARCH = "hey anna";
+    private static final String KEYWORD_SEARCH = "hey okay";
 
     @Override
     public void onCreate() {
