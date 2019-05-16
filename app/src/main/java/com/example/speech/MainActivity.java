@@ -25,6 +25,7 @@ import android.provider.ContactsContract;
 import android.provider.MediaStore;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
+import android.speech.tts.TextToSpeech;
 import android.support.annotation.NonNull;
 import android.support.annotation.RequiresApi;
 import android.support.v4.app.ActivityCompat;
@@ -72,6 +73,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -102,6 +104,8 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
     private EditText edittext_chatbox;
     private LinearLayout layout_chatbox;
     private FrameLayout layout_speech;
+
+    private TextToSpeech textToSpeech;
 
     private boolean isRecognitionSpeech;
 
@@ -158,6 +162,16 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         btnKeyBoard = findViewById(R.id.btnKeyBoard);
         btnListen = findViewById(R.id.btnListen);
         recognitionProgressView = (RecognitionProgressView) findViewById(R.id.recognition_view);
+
+
+        textToSpeech = new TextToSpeech(getApplicationContext(), new TextToSpeech.OnInitListener() {
+            @Override
+            public void onInit(int status) {
+                if(status != TextToSpeech.ERROR) {
+                    textToSpeech.setLanguage(Locale.getDefault());
+                }
+            }
+        });
 
 
 
@@ -226,6 +240,9 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
     }
 
+    /**
+     * Setup UI Recognition Progress View
+     */
     private void setUiRecognition(){
         // setup Speech Recognition
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
@@ -280,6 +297,11 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
     }
 
 
+    /**
+     * Add Message
+     * @param text
+     * @param isUser
+     */
     private void sendMessage(String text, boolean isUser) {
 
         messageList.add(new Message(text, isUser, System.currentTimeMillis()));
@@ -289,7 +311,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
 
     /**
-     * check permission
+     * Check permission
      */
     private void requestPermission(){
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -375,8 +397,14 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
         List<ResolveInfo> availableActivities = manager.queryIntentActivities(i, 0);
         for (ResolveInfo resolveInfo : availableActivities){
-            Application app = new Application(resolveInfo.loadLabel(manager), resolveInfo.activityInfo.packageName);
-            Log.d("MainActivity", "getAllApplicationInPhone: " + app.getName());
+
+            String name = (String) resolveInfo.loadLabel(manager);
+            name = name.toLowerCase();
+
+            String packageName = resolveInfo.activityInfo.packageName;
+
+            Application app = new Application(name, packageName);
+
             apps.add(app);
         }
 
@@ -437,15 +465,16 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
     }
 
 
+    /**
+     * Write data to file database csv
+     */
     private void writeCsvMessage(){
         File folder = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), "SpeechApplication");
-        Log.d("writeCsvMessage: ", folder.getAbsolutePath());
         if(!folder.exists()){
             folder.mkdirs();
         }
 
         File csv = new File(folder, "message.csv");
-        Log.d("writeCsvMessage: ", "CSV: " + csv.getAbsolutePath());
         if(!csv.exists()){
             try {
                 csv.createNewFile();
@@ -459,6 +488,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         for (Message m : messageList ){
             data += m.getMessage() + ";" + m.getCreatedAt() + ";" + String.valueOf(m.isSender()) + "\n";
         }
+        Log.d("writeCsvMessage: ", data);
 
         FileWriter fw = null;
         try {
@@ -473,6 +503,9 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         }
     }
 
+    /**
+     * Read data from file database csv
+     */
     private void readCsvMessage(){
 
         File folder = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), "SpeechApplication").getAbsoluteFile();
@@ -496,6 +529,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                             boolean isUser = Boolean.valueOf(ms[2]);
 
                             if(!message.equals("Chào bạn, Tôi có thể giúp gì cho bạn!")){
+                                Log.d("readCsvMessage: ", message + " " + String.valueOf(isUser) + " " + String.valueOf(time));
                                 messageList.add(new Message(message, isUser, time));
                             }
                         }
@@ -655,18 +689,17 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         if (text.contains(":")){
 
             String[] ls = text.split(" ");
-            String[] lstemp = ls[4].split(":");
+            String[] lstemp = ls[ls.length-1].split(":");
             int hour = Integer.parseInt(lstemp[0]);
             int minutes = Integer.parseInt(lstemp[1]);
-
 
             String message = "Báo thức bằng Speech";
             createAlarm(message, hour, minutes);
         }
         else {
             String[] ls = text.split(" ");
-            int hour = Integer.parseInt(ls[4]);
-            int minutes = Integer.parseInt(ls[6]);
+            int hour = Integer.parseInt(ls[ls.length-1]);
+            int minutes = 0;
             String message = "Báo thức bằng Speech";
             createAlarm(message, hour, minutes);
         }
@@ -684,6 +717,8 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                 .putExtra(AlarmClock.EXTRA_HOUR, hour)
                 .putExtra(AlarmClock.EXTRA_MINUTES, minutes);
         if (intent.resolveActivity(getPackageManager()) != null) {
+
+            sendMessage("Đã đạt báo thức lúc "+ String.valueOf(hour) + ":" + String.valueOf(minutes), false);
             startActivity(intent);
         }
     }
@@ -721,7 +756,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                 .putExtra(AlarmClock.EXTRA_MESSAGE, message)
                 .putExtra(AlarmClock.EXTRA_LENGTH, seconds);
         if (intent.resolveActivity(getPackageManager()) != null) {
-            Toast.makeText(getApplicationContext(), "Đếm ngược: " + String.valueOf(seconds /60) , Toast.LENGTH_LONG ).show();
+            sendMessage("Đã đặt đếm ngược: " + String.valueOf(seconds /60), false);
             startActivity(intent);
         }
     }
@@ -833,7 +868,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
             String location = text.substring(start, end);
             navigation(location);
 
-            Toast.makeText(this, "Tim duong", Toast.LENGTH_SHORT).show();
+            sendMessage("Tìm đường đi đến " + location, false);
 
         }else if (text.contains("gần")){
 
@@ -846,8 +881,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
             String location = text.substring(start, end);
             search_location(location);
 
-            Toast.makeText(this, "Tim gan nhat", Toast.LENGTH_LONG).show();
-
+            sendMessage("Tìm " + location + "gần nhất", false);
         }else{
 
             String string_start = "tìm";
@@ -856,6 +890,8 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
             int end = text.length();
 
             String key = text.substring(start, end);
+
+            sendMessage("Search: " + key, false);
 
             search_google(key);
         }
@@ -947,7 +983,6 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
                 sendMessage("Không tìm thấy ứng dụng trên điện thoại của bạn", false);
 
-                show_alert(MainActivity.this, "", "Không tìm thấy ứng dụng trên điện thoại.");
             }
         }
 
@@ -959,8 +994,6 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
      * @param idApp: id Application
      */
     private void lauch_application(String idApp){
-
-        Toast.makeText(getApplicationContext(), idApp, Toast.LENGTH_SHORT).show();
 
         Intent lauch = getPackageManager().getLaunchIntentForPackage(idApp);
 
@@ -1017,7 +1050,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
             @Override
             public void onFailure(Throwable throwable) {
                 progressDialog.dismiss();
-                show_alert(MainActivity.this, "Lỗi", "Chức năng đang bị lỗi!");
+                sendMessage("Lỗi, Không thế tìm kiếm thời tiết tại vị trí của bạn.", false);
                 Log.v("Weather", throwable.getMessage());
             }
         });
@@ -1040,6 +1073,9 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         String w = "Thời tiết " + location + " : "+description + " " + tempMax + "\u2103";
 
         sendMessage(w, false);
+
+        textToSpeech.speak(w, TextToSpeech.QUEUE_FLUSH, null);
+
 
         Dialog dialog = new Dialog(this);
         dialog.setContentView(R.layout.weather);

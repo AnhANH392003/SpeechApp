@@ -1,6 +1,6 @@
 # Speech Processing in Android 
 
-Application Assignment in Android with Speech to Text API Google
+Application Android Assistant use API Speech to Text Google
 
 
 ## How a wake-up word (hotword) 
@@ -27,24 +27,32 @@ ringo   R IY NG G OW
 stop	S T AA P
 ```
 
-
 ## How to work
+
+Alarm
+
+    * Đặt báo thức lúc {giờ cần đặt báo thức}
+
+Timer
+
+    * Đặt đếm ngược {thời gian cần đếm ngược}
 
 Call phone
     
-    Gọi số {số điện thoại}
-    Gọi cho {tên trong danh bạ}
+    * Gọi số {số điện thoại}
+    * Gọi cho {tên trong danh bạ}
+    * Gọi cho taxi (mặc định gọi taxi G7)
 
 Map
 
-    Tìm đường đến {địa điểm}
-    Tìm {địa điểm} gần nhất
+    * Tìm đường đến {địa điểm}
+    * Tìm {địa điểm} gần nhất
 
 Lauching application
 
-    Mở {tên app}: chụp ảnh, Facebook, Youtube, Nghe nhạc(MP3), Messenger, Instagram, Google Map
+    * Mở {tên app}: chụp ảnh, Facebook, Youtube, Nghe nhạc(MP3), Messenger, Instagram, Google Map
 
-Weather: show thời tiết vị trí hiện tại
+Weather: chỉ show thời tiết vị trí hiện tại
     
-    Thời tiết hôm nay thế nào?
+    * Thời tiết hôm nay thế nào?
 
