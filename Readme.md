@@ -3,19 +3,18 @@
 Application Android Assistant use API Speech to Text Google
 
 
-## How a wake-up word (hotword) 
+## Wake-up(hotword)
 
-This projects emonstrate, how a wake-up word (a.k.a. hot word) can be used inside an android app, to wake it up. Imagine a scenario, where the android app is already launched and running in the foreground, just waiting for a user to say the wake-up word or phrase, to start the full experience, i.e., start the next activity.
+Làm thế nào để mở ứng dụng trên Android bằng giọng nói giống như "Oke Goole" để mở Google Assistant. Trong ứng dụng Android đã được khởi chạy và đang ở chế độ chạy nền, ứng dụng chỉ chờ người dùng nói từ "hey okay"(từ hot word được cài đặt trước) thì ứng dụng sẽ chạy để bạn tiếp tục các trải nghiệm.
 
-Waiting is somewhat indeterministic, we don’t really know how long we have to wait, until the wake-up word gets spoken, which means using an on-line speech recognition service doesn’t sound like a good idea. Fortunately, there is [PocketSphinx](https://github.com/cmusphinx/pocketsphinx), a lightweight speech recognition engine, specifically tuned for handheld and mobile devices that works locally on the phone. Let’s get started, by creating a simple project with Android Studio.
+Chúng ta không thể nào xác định chính xác thời gian cần chờ đợi cho đến khi từ hot word được nói, có nghĩa là cách sử dụng nhận dạng giọng nói trực tuyến (vd: từ API Google) là không hợp lý. Hiện nay đã có PocketSphinx, một công cụ nhận dạng giọng nói có thể cài đặt trên các thiết bị di động hoạt động cục bộ trên điện thoại mà không cần kết nối Internet
 
-More details are available here: https://wolfpaulus.com/mac/custom-wakeup-words-for-an-android-app/ or https://github.com/cmusphinx/pocketsphinx-android-demo
+Bạn có thể tham khảo thêm tại: [wolfpaulus](https://wolfpaulus.com/mac/custom-wakeup-words-for-an-android-app/) hoặc [github cmusphinx](https://github.com/cmusphinx/pocketsphinx-android-demo)
 
-### Add hotword to project 
+### Thêm hotword
+Trong folder từ điển `src/main/assets/sync/models/lm` chứa tất cả các từ mà bạn muốn nhận ra. Một bảng băm MD5 được tạo và lưu trữ, bảng băm MD5 này cần được cập nhật mỗi khi bạn thay đổi bộ từ điển hotwords(Vd: sử dụng http://passwordsgenerator.net/md5-hash-generator/)
 
-Inside project’s src/main folder, create a directory path like this assets/sync/models/lm and store a dictionary, containing all the words you want to recognize. Again, an MD5 hash has be created and stored. Remember that the md5 hash needs to be updated, each time you make a change to the dictionary. (E.g. use http://passwordsgenerator.net/md5-hash-generator/)
-
-Here for instance it a dictionary for recognizing the words {hey, okay, john, george, paul, ringo, stop}
+Đây là bộ từ điển để nhận ra các từ {hey, okay, john, george, paul, ringo, stop}
 
 ```
 george  JH AO R JH
@@ -27,7 +26,8 @@ ringo   R IY NG G OW
 stop	S T AA P
 ```
 
-## How to work
+Bạn có thể tạo ra cách phát âm cho từng từ trong từ điển bằng cách sử dụng **g2p-seq2seq**, nó sử dụng mô hình biến áp từ bộ công cụ tenor2tensor Một mô hình LSTM 2 lớp tiếng Anh với 512 đơn vị ẩn có sẵn trên trang web. Bạn có thể tham khảo hướng dẫn [tại đây.](https://cmusphinx.github.io/wiki/tutorialdict/#using-g2p-seq2seq-to-extend-the-dictionary)
+## Hướng dẫn sử dụng
 
 Alarm
 
@@ -37,11 +37,11 @@ Timer
 
     * Đặt đếm ngược {thời gian cần đếm ngược}
 
-Call phone
+Call phone;
     
     * Gọi số {số điện thoại}
     * Gọi cho {tên trong danh bạ}
-    * Gọi cho taxi (mặc định gọi taxi G7)
+    * Gọi cho taxi (mặc định gọi taxi G7 sdt: 024 3232 3232)
 
 Map
 
@@ -50,7 +50,7 @@ Map
 
 Lauching application
 
-    * Mở {tên app}: chụp ảnh, Facebook, Youtube, Nghe nhạc(MP3), Messenger, Instagram, Google Map
+    * Mở {tên app}: chụp ảnh, Facebook, Youtube, Nghe nhạc(MP3), Messenger, Instagram, Google Map, tất cả các app có trên điện thoại
 
 Weather: chỉ show thời tiết vị trí hiện tại
     

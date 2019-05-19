@@ -37,6 +37,9 @@ import android.os.Bundle;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
@@ -123,7 +126,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
         init();
 
-
+        startRecognition();
     }
 
 
@@ -182,12 +185,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         mMessageRecycler.setAdapter(mMessageAdapter);
         mMessageRecycler.setLayoutManager(new LinearLayoutManager(this));
 
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-
-            }
-        }).start();
+        messageList.add(new Message("Chào bạn, Tôi có thể giúp gì cho bạn!", false, System.currentTimeMillis()));
 
         readCsvMessage();
 
@@ -206,8 +204,13 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                 String text = edittext_chatbox.getText().toString();
                 edittext_chatbox.setText("");
                 sendMessage(text, true);
-
-                processing_text(text);
+                if (text.equals("")){
+                    String textSpeech = "Xin lỗi... Tôi không hiểu";
+                    textToSpeech.speak(textSpeech, TextToSpeech.QUEUE_FLUSH, null);
+                    sendMessage(textSpeech, false);
+                }else{
+                    processing_text(text);
+                }
             }
         });
 
@@ -306,7 +309,13 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
         messageList.add(new Message(text, isUser, System.currentTimeMillis()));
         mMessageAdapter.notifyDataSetChanged();
-        writeCsvMessage();
+        mMessageRecycler.smoothScrollToPosition(messageList.size() - 1);
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                writeCsvMessage();
+            }
+        }).start();
     }
 
 
@@ -411,6 +420,32 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         return apps;
     }
 
+
+    public boolean onCreateOptionsMenu(Menu menu) {
+
+        MenuInflater inflater = getMenuInflater();
+
+        inflater.inflate(R.menu.menu_main, menu);
+
+        return true;
+
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()){
+            case R.id.delete:
+                deleteMessage();
+                return true;
+            case R.id.help:
+                Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/thangtran480/SpeechToText"));
+                startActivity(browserIntent);
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
@@ -420,10 +455,10 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         Intent intent = new Intent(this, Trigger.class);
         stopService(intent);
 
-        if(isRecognitionSpeech){
-            //start Recognition Speech
-            startRecognition();
-        }
+//        if(isRecognitionSpeech){
+//            //start Recognition Speech
+//            startRecognition();
+//        }
 
     }
 
@@ -554,13 +589,26 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
     }
 
+    private void deleteMessage(){
+
+        messageList.clear();
+        messageList.add(new Message("Chào bạn, Tôi có thể giúp gì cho bạn!", false, System.currentTimeMillis()));
+        mMessageAdapter.notifyDataSetChanged();
+        Toast.makeText(getApplicationContext(), " Xóa dữ liệu thành công", Toast.LENGTH_LONG).show();
+
+    }
     /**
      * convert theme Keyboard to Speech
      */
     private void KeyboardToSpeech(){
         layout_chatbox.setVisibility(View.INVISIBLE);
         layout_speech.setVisibility(View.VISIBLE);
-
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT
+        );
+        params.setMargins(0, 0, 0, 410);
+        mMessageRecycler.setLayoutParams(params);
         closeKeyboard();
     }
 
@@ -577,10 +625,16 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         layout_chatbox.setVisibility(View.VISIBLE);
         layout_speech.setVisibility(View.INVISIBLE);
 
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT
+        );
+        params.setMargins(0, 0, 0, 140);
+        mMessageRecycler.setLayoutParams(params);
     }
 
     /**
-     * Start Google API recognition
+     * Start Speech Recognition
      */
     private void startRecognition() {
 
@@ -599,6 +653,9 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         speechRecognizer.startListening(intent);
     }
 
+    /**
+     * Finish Speech Recognition
+     */
     private void finishRecognition(){
 
         btnListen.setVisibility(View.VISIBLE);
@@ -610,12 +667,18 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         recognitionProgressView.setVisibility(View.GONE);
     }
 
+    /**
+     * Open Keyboard
+     */
     public void showKeyboard(){
         edittext_chatbox.requestFocus();
         InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
         imm.showSoftInput(edittext_chatbox, InputMethodManager.SHOW_IMPLICIT);
     }
 
+    /**
+     * Close KeyBoard
+     */
     public void closeKeyboard(){
         InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
         imm.hideSoftInputFromWindow(edittext_chatbox.getWindowToken(), 0);
@@ -632,25 +695,34 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
         if (text.contains("gọi")){
 
+            // Call phone
             call(text);
 
         }
         else if (text.contains("tìm")){
 
+            // Search text in Google map or Google search
             search(text);
 
         }
         else if(text.contains("mở")){
 
+            // Lauching application
             app(text);
         }
         else if (text.contains("thời tiết")){
+
+            // show weather in location
             weather();
         }
         else if (text.contains("báo thức")){
+
+            // setup alarm
             alarm(text);
         }
         else if ( text.contains("đếm ngược")){
+
+            // setup timer
             timer(text);
         }
         else{
@@ -658,27 +730,6 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         }
 
     }
-
-    /**
-     * Show alert
-     * @param activity
-     * @param title
-     * @param message
-     */
-    public static void show_alert(Activity activity, String title, String message) {
-
-        // https://github.com/aritraroy/Flashbar
-        new Flashbar.Builder(activity)
-                .gravity(Flashbar.Gravity.BOTTOM)
-                .duration(5000)
-                .title(title)
-                .titleSizeInPx(50f)
-                .message(message)
-                .backgroundColorRes(R.color.color1)
-                .build()
-                .show();
-    }
-
 
     /**
      * set alarm
@@ -793,6 +844,9 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
                 ArrayAdapter adapter = new ArrayAdapter<String>(this, R.layout.contact, nameCall);
 
+                String textSpeech = "Nhấn vào để gọi";
+                textToSpeech.speak(textSpeech, TextToSpeech.QUEUE_FLUSH, null);
+
                 final Dialog dialog = new Dialog(this);
                 dialog.setContentView(R.layout.list_contact);
                 ListView listView = dialog.findViewById(R.id.contact_list);
@@ -802,6 +856,9 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                         dialog.dismiss();
 
+                        String textSpeech = "Đang gọi cho "+ nameCall.get(position);
+
+                        textToSpeech.speak(textSpeech, TextToSpeech.QUEUE_FLUSH, null);
                         sendMessage("Call:" + nameCall.get(position), false);
 
                         phone_call_number(phoneCall.get(position));
@@ -812,8 +869,17 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                 dialog.show();
             }
             else if(nameCall.size() == 1){
+
+                String textSpeech = "Đang gọi cho " + nameCall.get(0);
+
+                textToSpeech.speak(textSpeech, TextToSpeech.QUEUE_FLUSH, null);
+
                 phone_call_number(phoneCall.get(0));
             }else{
+
+                String textSpeech = "Không tìm thấy tên người liên hệ trong danh bạ";
+
+                textToSpeech.speak(textSpeech, TextToSpeech.QUEUE_FLUSH, null);
 
                 sendMessage("Không tìm thấy tên người liên hệ trong danh bạ.", false);
 
@@ -1074,7 +1140,8 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
         sendMessage(w, false);
 
-        textToSpeech.speak(w, TextToSpeech.QUEUE_FLUSH, null);
+        String textSpeech = "Thời tiết " + location + " : "+description + " " + tempMax + "độ xê";
+        textToSpeech.speak(textSpeech, TextToSpeech.QUEUE_FLUSH, null);
 
 
         Dialog dialog = new Dialog(this);
