@@ -28,7 +28,7 @@ stop	S T AA P
 
 Bạn có thể tạo ra cách phát âm cho từng từ trong từ điển bằng cách sử dụng **g2p-seq2seq**, nó sử dụng mô hình biến áp từ bộ công cụ tenor2tensor Một mô hình LSTM 2 lớp tiếng Anh với 512 đơn vị ẩn có sẵn trên trang web. Bạn có thể tham khảo hướng dẫn [tại đây.](https://cmusphinx.github.io/wiki/tutorialdict/#using-g2p-seq2seq-to-extend-the-dictionary)
 ## Screen 
-![main screen](assets/img.jpg)
+![main screen](assets/image1.jpg)
 ![main screen](assets/image2.jpg)
 ![main screen](assets/image3.jpg)
 
