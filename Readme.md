@@ -1,9 +1,56 @@
-# Speech Processing in Android 
+<br />
+<p align="center">
+  <a href="https://github.com/Tuanna2208/Speech-Processing-Project">
+    <img src="assets/logo.png" alt="Logo" width="100" height="100">
+  </a>
 
-Application Android Assistant use API Speech to Text Google
+  <h3 align="center">Speech Processing Android</h3>
 
+  <p align="center">
+    Application Android Assistant
+    <br />
+    <br />
+    <!-- <a href="assets/logo.png">View Demo</a>
+    ·
+    <a href="https://github.com/Tuanna2208/Speech-Processing-Project/issues">Report Bug</a>
+    ·
+    <a href="https://github.com/Tuanna2208/Speech-Processing-Project/issues">Request Feature</a> -->
+  </p>
+</p>
 
-## Wake-up(hotword)
+## Table of Contents
+
+* About project
+* Prerequisites
+* Support
+* Run App in Android Studio
+* Getting start
+
+## About project 
+
+Các công nghệ chính được sử dụng trong phần mềm:
+    
+* Sử dụng [Trigger Word(Wake-up)]() dựa trên thư viện PocketSphinx Android  
+* Speech To Text và Text To Speech trên nền tảng API Google
+* Các tính năng trợ lý trên Android:
+    
+    * Đặt báo thức
+    * Đếm ngược
+    * Gọi điện thoại
+    * Tìm địa chỉ trên Google Map
+    * Mở các ứng dụng trên điện thoại
+    * Thời tiết
+    * Search trên công cụ tìm kiếm google
+
+## Rrerequisites
+
+* Android SDK v24 (minSdkVersion 19 - targetSdkVersion 28)
+* Latest Android Build Tools
+* Android Support Repository
+
+## Support 
+
+### Wake-up(hotword)
 
 Làm thế nào để mở ứng dụng trên Android bằng giọng nói giống như "Oke Goole" để mở Google Assistant. Trong ứng dụng Android đã được khởi chạy và đang ở chế độ chạy nền, ứng dụng chỉ chờ người dùng nói từ "hey okay"(từ hot word được cài đặt trước) thì ứng dụng sẽ chạy để bạn tiếp tục các trải nghiệm.
 
@@ -11,7 +58,7 @@ Chúng ta không thể nào xác định chính xác thời gian cần chờ đ�
 
 Bạn có thể tham khảo thêm tại: [wolfpaulus](https://wolfpaulus.com/mac/custom-wakeup-words-for-an-android-app/) hoặc [github cmusphinx](https://github.com/cmusphinx/pocketsphinx-android-demo)
 
-### Thêm hotword
+#### Thêm hotword
 Trong folder từ điển `src/main/assets/sync/models/lm` chứa tất cả các từ mà bạn muốn nhận ra. Một bảng băm MD5 được tạo và lưu trữ, bảng băm MD5 này cần được cập nhật mỗi khi bạn thay đổi bộ từ điển hotwords(Vd: sử dụng http://passwordsgenerator.net/md5-hash-generator/)
 
 Đây là bộ từ điển để nhận ra các từ {hey, okay, john, george, paul, ringo, stop}
@@ -27,7 +74,31 @@ stop	S T AA P
 ```
 
 Bạn có thể tạo ra cách phát âm cho từng từ trong từ điển bằng cách sử dụng **g2p-seq2seq**, nó sử dụng mô hình biến áp từ bộ công cụ tenor2tensor Một mô hình LSTM 2 lớp tiếng Anh với 512 đơn vị ẩn có sẵn trên trang web. Bạn có thể tham khảo hướng dẫn [tại đây.](https://cmusphinx.github.io/wiki/tutorialdict/#using-g2p-seq2seq-to-extend-the-dictionary)
-## Screen 
+
+### Text To Speech và Speech To Text trên API Google
+
+Google cung cấp các API cho phép sử dụng các chức năng TextToSpeech và SpeechToText một cách đơn giản và hiệu quả
+
+Ưu điểm:
+* Được sử dụng miễn phí và được update liên tục từ Google
+* Nhận dạng giọng nói tương đối nhanh và chính xác
+
+Nhược điểm:
+* Tốc độ sử lý phụ thuộc vào tốc độ đường chuyền internet trên điện thoại
+* Quá phụ thuộc vào kết quả từ Google API
+* Chức năng TextToSpeech của Google đọc chưa có ngữ điệu nên khá khó nghe
+
+## Run App in Android Studio
+
+1. Clone repo từ github
+
+```git clone https://github.com/thangtran480/SpeechApp.git```
+
+2. Mở project SpeechApp trên Android Studio
+3. Run app trên máy ảo hoặc máy thật
+
+## Screen
+
 ![main screen](assets/image1.jpg)
 ![main screen](assets/image2.jpg)
 ![main screen](assets/image3.jpg)
@@ -38,7 +109,7 @@ Bạn có thể tạo ra cách phát âm cho từng từ trong từ điển bằ
 
 * Đặt báo thức lúc {giờ cần đặt báo thức}
 
-Điếm ngược
+Đếm ngược
 
 * Đặt đếm ngược {thời gian cần đếm ngược}
 
