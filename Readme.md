@@ -113,11 +113,13 @@ Nhược điểm:
 Đặt báo thức
 
 * Đặt báo thức lúc {giờ cần đặt báo thức}
+
 ![bao thuc](assets/gif/bao-thuc.gif)
 
 Đếm ngược
 
 * Đặt đếm ngược {thời gian cần đếm ngược}
+
 ![dem nguoc](assets/gif/timer.gif)
 
 Gọi điện thoại
@@ -125,28 +127,35 @@ Gọi điện thoại
 * Gọi số {số điện thoại}
 * Gọi cho {tên trong danh bạ}
 * Gọi cho taxi (mặc định gọi taxi G7 sdt: 024 3232 3232)
+
 ![goi so](assets/gif/goi-so.gif)
+
 ![goi ten](assets/gif/goi-ten.gif)
 
 Google map
 
 * Tìm đường đến {địa điểm}
+
 ![tim duong](assets/gif/tim-duong.gif)
 * Tìm {địa điểm} gần nhất
+
 ![tim gan nhat](assets/gif/tim-gan.gif)
 
 Mở ứng dụng trên điện thoại 
 
 * Mở {tên app}: chụp ảnh, Facebook, Youtube, Nghe nhạc(MP3), Messenger, Instagram, Google Map (tên tất cả các app có trên điện thoại)
+
 ![mo app](assets/gif/mo-facebook.gif)
 
 Weather: chỉ show thời tiết vị trí hiện tại
     
 * Thời tiết hôm nay thế nào?
+
 ![thoi tiet](assets/gif/thoi-tiet.gif)
 
 Tìm kiếm bằng Google search:
 * Hôm nay có sự kiện gì?
 * Bà Tân Vlog là ai?
+
 ![search google](assets/gif/search-google.gif)
 
