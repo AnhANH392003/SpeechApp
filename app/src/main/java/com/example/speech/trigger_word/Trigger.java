@@ -1,4 +1,4 @@
-package com.example.speech;
+package com.example.speech.trigger_word;
 
 import android.app.Service;
 import android.content.Context;
@@ -7,6 +7,8 @@ import android.os.IBinder;
 import android.os.Vibrator;
 import android.support.annotation.Nullable;
 import android.util.Log;
+
+import com.example.speech.activities.MainActivity;
 
 import java.io.File;
 import java.io.IOException;

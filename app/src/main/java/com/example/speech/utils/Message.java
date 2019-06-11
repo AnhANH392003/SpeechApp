@@ -1,4 +1,4 @@
-package com.example.speech;
+package com.example.speech.utils;
 
 public class Message {
 

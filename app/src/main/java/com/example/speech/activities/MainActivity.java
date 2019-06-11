@@ -1,4 +1,4 @@
-package com.example.speech;
+package com.example.speech.activities;
 
 import android.Manifest;
 import android.annotation.TargetApi;
@@ -45,6 +45,7 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.example.speech.R;
 import com.example.speech.trigger_word.Trigger;
 import com.example.speech.utils.Application;
 import com.example.speech.utils.Contact;

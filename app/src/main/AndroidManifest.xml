@@ -21,7 +21,7 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
         <activity
-            android:name=".MainActivity"
+            android:name=".activities.MainActivity"
             android:configChanges="keyboard|keyboardHidden">
             <intent-filter>
                 <action android:name="android.intent.action.SET_ALARM" />
@@ -34,7 +34,7 @@
             </intent-filter>
         </activity>
 
-        <service android:name=".Trigger" />
+        <service android:name=".trigger_word.Trigger" />
     </application>
 
 </manifest>

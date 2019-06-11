@@ -52,6 +52,8 @@ Các công nghệ chính được sử dụng trong phần mềm:
 
 ### Wake-up(hotword)
 
+[![Trigger word](http://img.youtube.com/vi/9PrLULZp4UQ/0.jpg)](http://www.youtube.com/watch?v=9PrLULZp4UQ "")
+
 Làm thế nào để mở ứng dụng trên Android bằng giọng nói giống như "Oke Goole" để mở Google Assistant. Trong ứng dụng Android đã được khởi chạy và đang ở chế độ chạy nền, ứng dụng chỉ chờ người dùng nói từ "hey okay"(từ hot word được cài đặt trước) thì ứng dụng sẽ chạy để bạn tiếp tục các trải nghiệm.
 
 Chúng ta không thể nào xác định chính xác thời gian cần chờ đợi cho đến khi từ hot word được nói, có nghĩa là cách sử dụng nhận dạng giọng nói trực tuyến (vd: từ API Google) là không hợp lý. Hiện nay đã có PocketSphinx, một công cụ nhận dạng giọng nói có thể cài đặt trên các thiết bị di động hoạt động cục bộ trên điện thoại mà không cần kết nối Internet
@@ -78,15 +80,18 @@ Bạn có thể tạo ra cách phát âm cho từng từ trong từ điển bằ
 ### Text To Speech và Speech To Text trên API Google
 
 Google cung cấp các API cho phép sử dụng các chức năng TextToSpeech và SpeechToText một cách đơn giản và hiệu quả
+[(Link tham khảo)](https://developer.android.com/reference/android/speech/tts/TextToSpeech)
 
 Ưu điểm:
-* Được sử dụng miễn phí và được update liên tục từ Google
 * Nhận dạng giọng nói tương đối nhanh và chính xác
+* Dễ dàng tích hợp và sử dụng trên thiết bị Android
+* Được sử dụng miễn phí và được update liên tục từ Google
 
 Nhược điểm:
 * Tốc độ sử lý phụ thuộc vào tốc độ đường chuyền internet trên điện thoại
 * Quá phụ thuộc vào kết quả từ Google API
-* Chức năng TextToSpeech của Google đọc chưa có ngữ điệu nên khá khó nghe
+* TextToSpeech của Google đọc chưa có ngữ điệu nên khá khó nghe
+* SpeechToText yêu cầu minSDKVersion>=21 và điện thoại có hỗ trợ đọc tiếng Việt
 
 ## Run App in Android Studio
 
@@ -108,31 +113,40 @@ Nhược điểm:
 Đặt báo thức
 
 * Đặt báo thức lúc {giờ cần đặt báo thức}
+![bao thuc](assets/gif/bao-thuc.gif)
 
 Đếm ngược
 
 * Đặt đếm ngược {thời gian cần đếm ngược}
+![dem nguoc](assets/gif/timer.gif)
 
 Gọi điện thoại
 
 * Gọi số {số điện thoại}
 * Gọi cho {tên trong danh bạ}
 * Gọi cho taxi (mặc định gọi taxi G7 sdt: 024 3232 3232)
+![goi so](assets/gif/goi-so.gif)
+![goi ten](assets/gif/goi-ten.gif)
 
 Google map
 
 * Tìm đường đến {địa điểm}
+![tim duong](assets/gif/tim-duong.gif)
 * Tìm {địa điểm} gần nhất
+![tim gan nhat](assets/gif/tim-gan.gif)
 
 Mở ứng dụng trên điện thoại 
 
 * Mở {tên app}: chụp ảnh, Facebook, Youtube, Nghe nhạc(MP3), Messenger, Instagram, Google Map (tên tất cả các app có trên điện thoại)
+![mo app](assets/gif/mo-facebook.gif)
 
 Weather: chỉ show thời tiết vị trí hiện tại
     
 * Thời tiết hôm nay thế nào?
+![thoi tiet](assets/gif/thoi-tiet.gif)
 
 Tìm kiếm bằng Google search:
 * Hôm nay có sự kiện gì?
 * Bà Tân Vlog là ai?
+![search google](assets/gif/search-google.gif)
 
